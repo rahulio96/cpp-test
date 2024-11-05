@@ -12,13 +12,10 @@ OSs Tested on: Linux
 
 #include <iostream>
 #include <queue>
+#include <fstream>
+#include <string>
 
-int main()
-{
-    std::cout << "Hello, World!!!!!" << std::endl;
-
-    return 0;
-}
+using namespace std;
 
 /*
  Input file structure
@@ -47,7 +44,7 @@ void roundRobin() {
     // subtract time slice from the process's burst time
     // if process > 0, push it back into the queue
     // if process == 0, pop it from the queue
-    std::queue<int> fifoQueue;
+    queue<int> fifoQueue;
 }
 
 void shortestJobFirst() {
@@ -63,7 +60,7 @@ void shortestJobFirst() {
     // HANDLE TIES
     // if burst time is the same, compare arrival time (smaller arrival time first)
     // if arrival time is the same, compare process number (smaller process number first)
-    std::queue<int> fifoQueue;
+    queue<int> fifoQueue;
 }
 
 void priorityScheduling() {
@@ -79,4 +76,88 @@ void prioritySchedulingWithPreemption() {
 
     // HANDLE TIES
     // if priority is the same, compare process number (smaller process number first)
+}
+
+void runAlgorithmOnFile(string filePath) {
+
+    // First, read from the file and load the data into a 2D array
+    try {
+        ifstream inFile(filePath);
+        string fileLine;
+        int id;
+        int timeSlice;
+        int numProcesses;
+        getline(inFile, fileLine);
+
+        // Find the algorithm type (also get time slice if RR)
+        if (fileLine.substr(0, 2) == "RR") {
+            id = 0;
+            timeSlice = stoi(fileLine.substr(3));
+        } else if (fileLine.substr(0, 3) == "SJF") {
+            id = 2;
+        } else if (fileLine.substr(0, 11) == "PR_noPREMP") {
+            id = 3;
+        } else if (fileLine.substr(0, 13) == "PR_withPREMP") {
+            id = 4;
+        } else {
+            throw runtime_error("Invalid algorithm type or file not found");
+        }
+        
+        // Get the number of processes
+        if (getline(inFile, fileLine)) {
+            numProcesses = stoi(fileLine);
+        }
+
+        // Load the process info into a 2D array
+        string processes[numProcesses][4];
+        int row = 0;  
+        while (getline(inFile, fileLine)) {
+            char prev  = ' ';
+            int col = 0;
+            for(char& c : fileLine) {
+                if (prev == ' ' && c != ' ') {
+                    processes[row][col] = c;
+                    col++;
+                    prev = c;
+                } else if (prev != ' ' && c != ' ') {
+                    processes[row][col-1] += c;
+                    prev = c;
+                } else if (prev != ' ' && c == ' ') {
+                    prev = c;
+                }
+            }
+            row++;
+        }
+
+        // Run the algorithm based on the id now that we have the data
+        switch (id) {
+            case 0:
+                roundRobin();
+                break;
+            case 1:
+                shortestJobFirst();
+                break;
+            case 2:
+                priorityScheduling();
+                break;
+            case 3:
+                priorityScheduling();
+                break;
+            case 4:
+                prioritySchedulingWithPreemption();
+                break;
+            default:
+                break;
+        }
+
+    } catch (exception& e) {
+        cerr << e.what() << endl;
+    }
+
+}
+
+int main() {
+    string filePath = "./test_cases/input4.txt";
+    runAlgorithmOnFile(filePath);
+    return 0;
 }
