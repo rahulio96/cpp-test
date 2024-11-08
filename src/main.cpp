@@ -15,6 +15,7 @@ OSs Tested on: Linux
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <array>
 
 /*
  Input file structure
@@ -36,14 +37,33 @@ OSs Tested on: Linux
     26 1
  */
 
-void roundRobin() {
-    // TODO: read from a file path and load into queue
+void roundRobin(std::vector<std::array<int, 4>> processes, int numProcesses, int timeSlice) {
+    std::cout << "RR " << timeSlice << std::endl;
+    double avgWaitTime = 0;
 
-    // pop process from queue, "run it" and add time slice to total
-    // subtract time slice from the process's burst time
-    // if process > 0, push it back into the queue
-    // if process == 0, pop it from the queue
-    std::queue<int> fifoQueue;
+    std::queue<std::array<int, 4>> fifoQueue;
+
+    // Load processes into the queue
+    // Just push them, since arrival time is always 0 for RR
+    for (int i = 0; i < numProcesses; i++) {
+        fifoQueue.push(processes[i]);
+    }
+
+    int totalTime = 0;
+    while (!fifoQueue.empty()) {
+        std::array<int, 4> curProcess = fifoQueue.front();
+        fifoQueue.pop();
+
+        std::cout << totalTime << "\t" << curProcess[0] << std::endl;
+
+        if (curProcess[2] <= timeSlice) {
+            totalTime += curProcess[2];
+        } else {
+            totalTime += timeSlice;
+            curProcess[2] -= timeSlice;
+            fifoQueue.push(curProcess);
+        }
+    }
 }
 
 void shortestJobFirst() {
@@ -108,7 +128,7 @@ void runAlgorithmOnFile(std::string filePath) {
         }
 
         // Load the process info into a 2D array
-        int processes[numProcesses][4];
+        std::vector<std::array<int, 4>> processes(numProcesses);
         int row = 0; 
         while (getline(inFile, fileLine)) {
             int start = 0;
@@ -130,7 +150,7 @@ void runAlgorithmOnFile(std::string filePath) {
         // Run the algorithm based on the id now that we have the data
         switch (id) {
             case 0:
-                roundRobin();
+                roundRobin(processes, numProcesses, timeSlice);
                 break;
             case 1:
                 shortestJobFirst();
