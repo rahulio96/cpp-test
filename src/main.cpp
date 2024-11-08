@@ -14,8 +14,7 @@ OSs Tested on: Linux
 #include <queue>
 #include <fstream>
 #include <string>
-
-using namespace std;
+#include <cmath>
 
 /*
  Input file structure
@@ -44,7 +43,7 @@ void roundRobin() {
     // subtract time slice from the process's burst time
     // if process > 0, push it back into the queue
     // if process == 0, pop it from the queue
-    queue<int> fifoQueue;
+    std::queue<int> fifoQueue;
 }
 
 void shortestJobFirst() {
@@ -60,7 +59,7 @@ void shortestJobFirst() {
     // HANDLE TIES
     // if burst time is the same, compare arrival time (smaller arrival time first)
     // if arrival time is the same, compare process number (smaller process number first)
-    queue<int> fifoQueue;
+    std::queue<int> fifoQueue;
 }
 
 void priorityScheduling() {
@@ -78,21 +77,21 @@ void prioritySchedulingWithPreemption() {
     // if priority is the same, compare process number (smaller process number first)
 }
 
-void runAlgorithmOnFile(string filePath) {
+void runAlgorithmOnFile(std::string filePath) {
 
     // First, read from the file and load the data into a 2D array
     try {
-        ifstream inFile(filePath);
-        string fileLine;
+        std::ifstream inFile(filePath);
+        std::string fileLine;
         int id;
         int timeSlice;
         int numProcesses;
-        getline(inFile, fileLine);
+        std::getline(inFile, fileLine);
 
         // Find the algorithm type (also get time slice if RR)
         if (fileLine.substr(0, 2) == "RR") {
             id = 0;
-            timeSlice = stoi(fileLine.substr(3));
+            timeSlice = stoi(fileLine.substr(3, fileLine.length()));
         } else if (fileLine.substr(0, 3) == "SJF") {
             id = 2;
         } else if (fileLine.substr(0, 11) == "PR_noPREMP") {
@@ -100,7 +99,7 @@ void runAlgorithmOnFile(string filePath) {
         } else if (fileLine.substr(0, 13) == "PR_withPREMP") {
             id = 4;
         } else {
-            throw runtime_error("Invalid algorithm type or file not found");
+            throw std::runtime_error("Invalid algorithm type or file not found");
         }
         
         // Get the number of processes
@@ -109,21 +108,42 @@ void runAlgorithmOnFile(string filePath) {
         }
 
         // Load the process info into a 2D array
-        string processes[numProcesses][4];
-        int row = 0;  
+        int processes[numProcesses][4];
+        int row = 0; 
         while (getline(inFile, fileLine)) {
-            char prev  = ' ';
+            // int exponent = 0; 
+            // char prev  = ' ';
+            // int col = 0;
+            // for(char& c : fileLine) {
+            //     if (prev == ' ' && c != ' ') {
+            //         // Convert char to int using c-'0'
+            //         processes[row][col] = c-'0';
+            //         col++;
+            //         prev = c;
+            //         exponent++;
+            //     } else if (prev != ' ' && c != ' ') {
+            //         // Multiply the previous number by 10 and add the new number
+            //         processes[row][col-1] *= pow(10, exponent);
+            //         processes[row][col-1] += c-'0';
+            //         prev = c;
+            //     } else if (prev != ' ' && c == ' ') {
+            //         prev = c;
+            //         exponent = 0;
+            //     }
+            // }
+            // row++;
+
+            int start = 0;
             int col = 0;
-            for(char& c : fileLine) {
-                if (prev == ' ' && c != ' ') {
-                    processes[row][col] = c;
+            for (int i = 0; i < fileLine.length(); i++) {
+                if (i == fileLine.length()-1) {
+                    // i-start gives the length of the number as a string
+                    // Use i-start+1 since i is not a space and has the last number
+                    processes[row][col] = stoi(fileLine.substr(start, i-start+1));
+                } else if (fileLine[i] == ' ') {
+                    processes[row][col] = stoi(fileLine.substr(start, i-start));
+                    start = i+1;
                     col++;
-                    prev = c;
-                } else if (prev != ' ' && c != ' ') {
-                    processes[row][col-1] += c;
-                    prev = c;
-                } else if (prev != ' ' && c == ' ') {
-                    prev = c;
                 }
             }
             row++;
@@ -150,14 +170,14 @@ void runAlgorithmOnFile(string filePath) {
                 break;
         }
 
-    } catch (exception& e) {
-        cerr << e.what() << endl;
+    } catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
     }
 
 }
 
 int main() {
-    string filePath = "./test_cases/input4.txt";
+    std::string filePath = "./test_cases/input1.txt";
     runAlgorithmOnFile(filePath);
     return 0;
 }
