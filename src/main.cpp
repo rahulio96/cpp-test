@@ -111,28 +111,6 @@ void runAlgorithmOnFile(std::string filePath) {
         int processes[numProcesses][4];
         int row = 0; 
         while (getline(inFile, fileLine)) {
-            // int exponent = 0; 
-            // char prev  = ' ';
-            // int col = 0;
-            // for(char& c : fileLine) {
-            //     if (prev == ' ' && c != ' ') {
-            //         // Convert char to int using c-'0'
-            //         processes[row][col] = c-'0';
-            //         col++;
-            //         prev = c;
-            //         exponent++;
-            //     } else if (prev != ' ' && c != ' ') {
-            //         // Multiply the previous number by 10 and add the new number
-            //         processes[row][col-1] *= pow(10, exponent);
-            //         processes[row][col-1] += c-'0';
-            //         prev = c;
-            //     } else if (prev != ' ' && c == ' ') {
-            //         prev = c;
-            //         exponent = 0;
-            //     }
-            // }
-            // row++;
-
             int start = 0;
             int col = 0;
             for (int i = 0; i < fileLine.length(); i++) {
