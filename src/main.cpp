@@ -17,6 +17,7 @@ OSs Tested on: Linux
 #include <cmath>
 #include <array>
 #include <unordered_map>
+#include <iomanip>
 
 /*
  Input file structure
@@ -38,7 +39,14 @@ OSs Tested on: Linux
     26 1
  */
 
-void roundRobin(std::queue<std::array<int, 4>> processes, int numProcesses, int timeSlice) {
+// Sort by arrival time
+struct CompareArrivalTime {
+    bool operator()(std::array<int, 4> const& p1, std::array<int, 4> const& p2) {
+        return p1[1] > p2[1];
+    }
+};
+
+void roundRobin(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses, int timeSlice) {
     std::cout << "RR " << timeSlice << std::endl;
     std::queue<std::array<int, 4>> fifoQueue;
 
@@ -47,11 +55,11 @@ void roundRobin(std::queue<std::array<int, 4>> processes, int numProcesses, int 
     std::unordered_map<int, int> processTimes;
 
     // Load the first process into the queue
-    fifoQueue.push(processes.front());
-    processTimes.insert({processes.front()[0], processes.front()[1]});
+    fifoQueue.push(processes.top());
+    processTimes.insert({processes.top()[0], processes.top()[1]});
 
     // Initialize curTime to the first process arrival time
-    int curTime = processes.front()[1];
+    int curTime = processes.top()[1];
     double totalWaitTime = 0;
 
     processes.pop();
@@ -77,9 +85,9 @@ void roundRobin(std::queue<std::array<int, 4>> processes, int numProcesses, int 
 
         // If the next process's arrival time is less than or equal to the current time it's ready to
         // be added to the FIFO queue
-        while (!processes.empty() && processes.front()[1] <= curTime) {
-            fifoQueue.push(processes.front());
-            processTimes.insert({processes.front()[0], processes.front()[1]});
+        while (!processes.empty() && processes.top()[1] <= curTime) {
+            fifoQueue.push(processes.top());
+            processTimes.insert({processes.top()[0], processes.top()[1]});
             processes.pop();
         }
 
@@ -93,7 +101,7 @@ void roundRobin(std::queue<std::array<int, 4>> processes, int numProcesses, int 
     }
 
     double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "Average Waiting Time: " << avgWaitTime << std::endl;
+    std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
 void shortestJobFirst() {
@@ -158,8 +166,9 @@ void runAlgorithmOnFile(std::string filePath) {
         }
 
         // Load the process info into a queue of processes
-        // TODO: sort the processes based on arrival time JUST IN CASE!!!
-        std::queue<std::array<int, 4>> processes;
+        // Use a priority queue to ENSURE that the processes are sorted by arrival time
+        // in case it's not in order in the input.txt file!
+        std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes;
         
         while (getline(inFile, fileLine)) {
             int start = 0; // Starting point of the number substring
