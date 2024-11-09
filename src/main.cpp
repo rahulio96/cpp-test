@@ -16,6 +16,7 @@ OSs Tested on: Linux
 #include <string>
 #include <cmath>
 #include <array>
+#include <unordered_map>
 
 /*
  Input file structure
@@ -37,33 +38,62 @@ OSs Tested on: Linux
     26 1
  */
 
-void roundRobin(std::vector<std::array<int, 4>> processes, int numProcesses, int timeSlice) {
+void roundRobin(std::queue<std::array<int, 4>> processes, int numProcesses, int timeSlice) {
     std::cout << "RR " << timeSlice << std::endl;
-    double avgWaitTime = 0;
-
     std::queue<std::array<int, 4>> fifoQueue;
 
-    // Load processes into the queue
-    // Just push them, since arrival time is always 0 for RR
-    for (int i = 0; i < numProcesses; i++) {
-        fifoQueue.push(processes[i]);
-    }
+    // Map to keep track of process id and start times
+    // Get the last associated time for each process (its start or end time)
+    std::unordered_map<int, int> processTimes;
 
-    int totalTime = 0;
+    // Load the first process into the queue
+    fifoQueue.push(processes.front());
+    processTimes.insert({processes.front()[0], processes.front()[1]});
+
+    // Initialize curTime to the first process arrival time
+    int curTime = processes.front()[1];
+    double totalWaitTime = 0;
+
+    processes.pop();
+
     while (!fifoQueue.empty()) {
+
+        // Get the current process and pop it from the queue
         std::array<int, 4> curProcess = fifoQueue.front();
         fifoQueue.pop();
 
-        std::cout << totalTime << "\t" << curProcess[0] << std::endl;
+        // Get the time spent waiting and add it to the total wait time
+        totalWaitTime += curTime - processTimes[curProcess[0]];
 
-        if (curProcess[2] <= timeSlice) {
-            totalTime += curProcess[2];
-        } else {
-            totalTime += timeSlice;
-            curProcess[2] -= timeSlice;
+        // Print the current time (process start time) and the process id
+        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+
+        // Get the minimum, if burst time is less than time slice, it means the process will finish
+        // early and we need to add the remaining burst time to the current time. If time slice is
+        // greater, then we just add the time slice to the current time.
+        int runTime = std::min(curProcess[2], timeSlice);
+        curTime += runTime;
+        curProcess[2] -= runTime;
+
+        // If the next process's arrival time is less than or equal to the current time it's ready to
+        // be added to the FIFO queue
+        while (!processes.empty() && processes.front()[1] <= curTime) {
+            fifoQueue.push(processes.front());
+            processTimes.insert({processes.front()[0], processes.front()[1]});
+            processes.pop();
+        }
+
+        // If the process has remaining burst time, add to end of the FIFO queue
+        if (curProcess[2] > 0) {
             fifoQueue.push(curProcess);
         }
+   
+        // Update the process time in the map to be its end time
+        processTimes[curProcess[0]] = curTime;
     }
+
+    double avgWaitTime = totalWaitTime / numProcesses;
+    std::cout << "Average Waiting Time: " << avgWaitTime << std::endl;
 }
 
 void shortestJobFirst() {
@@ -127,24 +157,26 @@ void runAlgorithmOnFile(std::string filePath) {
             numProcesses = stoi(fileLine);
         }
 
-        // Load the process info into a 2D array
-        std::vector<std::array<int, 4>> processes(numProcesses);
-        int row = 0; 
+        // Load the process info into a queue of processes
+        // TODO: sort the processes based on arrival time JUST IN CASE!!!
+        std::queue<std::array<int, 4>> processes;
+        
         while (getline(inFile, fileLine)) {
-            int start = 0;
-            int col = 0;
+            int start = 0; // Starting point of the number substring
+            int index = 0; // Index of the process array 
+            std::array<int, 4> process;
             for (int i = 0; i < fileLine.length(); i++) {
                 if (i == fileLine.length()-1) {
                     // i-start gives the length of the number as a string
                     // Use i-start+1 since i is not a space and has the last number
-                    processes[row][col] = stoi(fileLine.substr(start, i-start+1));
+                    process[index] = stoi(fileLine.substr(start, i-start+1));
                 } else if (fileLine[i] == ' ') {
-                    processes[row][col] = stoi(fileLine.substr(start, i-start));
+                    process[index] = stoi(fileLine.substr(start, i-start));
                     start = i+1;
-                    col++;
+                    index++;
                 }
             }
-            row++;
+            processes.push(process);
         }
 
         // Run the algorithm based on the id now that we have the data
