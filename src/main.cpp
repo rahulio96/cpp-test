@@ -39,10 +39,23 @@ OSs Tested on: Linux
     26 1
  */
 
-// Sort by arrival time
+// Sort by arrival time - used in all algorithms
+// Use this just in case the input file is not in order
 struct CompareArrivalTime {
     bool operator()(std::array<int, 4> const& p1, std::array<int, 4> const& p2) {
         return p1[1] > p2[1];
+    }
+};
+
+// Sort by burst time - used in SJF
+// If the burst time and arrival time is the same, sort by process ID
+struct CompareBurstTime {
+    bool operator()(std::array<int, 4> const& p1, std::array<int, 4> const& p2) {
+        if (p1[2] == p2[2] && p1[1] == p2[1]) {
+            return p1[0] > p2[0];
+        } else {
+            return p1[2] > p2[2];
+        }
     }
 };
 
@@ -104,20 +117,51 @@ void roundRobin(std::priority_queue<std::array<int, 4>, std::vector<std::array<i
     std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
-void shortestJobFirst() {
-    // TODO: read from a file path and load into queue
-    // TODO: simulate time based on an integer counter
+void shortestJobFirst(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
+    std::cout << "SJF" << std::endl;
 
-    // this queue will have values based on arrival time
-    // check head of queue to see if it matches current time
-    // if it does, pop it and push it into the priority queue
-    // priority queue will be sorted based on burst time
-    // pop from priority queue and run the process
+    // Use a priority queue to sort by burst time
+    std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareBurstTime> priorityQueue;
 
-    // HANDLE TIES
-    // if burst time is the same, compare arrival time (smaller arrival time first)
-    // if arrival time is the same, compare process number (smaller process number first)
-    std::queue<int> fifoQueue;
+    // Load the first process into the queue
+    priorityQueue.push(processes.top());
+
+    // Initialize curTime to the first process arrival time
+    int curTime = processes.top()[1];
+    double totalWaitTime = 0;
+    processes.pop();
+
+    // Get all the other processes that have arrived
+    while (!processes.empty() && processes.top()[1] <= curTime) {
+        priorityQueue.push(processes.top());
+        processes.pop();
+    }
+
+    while (!priorityQueue.empty()) {
+
+        // Get the current process and pop it from the queue
+        std::array<int, 4> curProcess = priorityQueue.top();
+        priorityQueue.pop();
+
+        // Get the time spent waiting and add it to the total wait time
+        totalWaitTime += curTime - curProcess[1];
+
+        // Print the current time (process start time) and the process id
+        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+
+        // SJF processes execute until completion, so just add burst time to current time
+        curTime += curProcess[2];
+
+        // If the next process's arrival time is less than or equal to the current time it's ready to
+        // be added to the priority queue
+        while (!processes.empty() && processes.top()[1] <= curTime) {
+            priorityQueue.push(processes.top());
+            processes.pop();
+        }
+    }
+
+    double avgWaitTime = totalWaitTime / numProcesses;
+    std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
 void priorityScheduling() {
@@ -151,11 +195,11 @@ void runAlgorithmOnFile(std::string filePath) {
             id = 0;
             timeSlice = stoi(fileLine.substr(3, fileLine.length()));
         } else if (fileLine.substr(0, 3) == "SJF") {
-            id = 2;
+            id = 1;
         } else if (fileLine.substr(0, 11) == "PR_noPREMP") {
-            id = 3;
+            id = 2;
         } else if (fileLine.substr(0, 13) == "PR_withPREMP") {
-            id = 4;
+            id = 3;
         } else {
             throw std::runtime_error("Invalid algorithm type or file not found");
         }
@@ -194,15 +238,12 @@ void runAlgorithmOnFile(std::string filePath) {
                 roundRobin(processes, numProcesses, timeSlice);
                 break;
             case 1:
-                shortestJobFirst();
+                shortestJobFirst(processes, numProcesses);
                 break;
             case 2:
                 priorityScheduling();
                 break;
             case 3:
-                priorityScheduling();
-                break;
-            case 4:
                 prioritySchedulingWithPreemption();
                 break;
             default:
@@ -216,7 +257,7 @@ void runAlgorithmOnFile(std::string filePath) {
 }
 
 int main() {
-    std::string filePath = "./test_cases/input1.txt";
+    std::string filePath = "./test_cases/input13.txt";
     runAlgorithmOnFile(filePath);
     return 0;
 }
