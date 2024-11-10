@@ -395,6 +395,40 @@ bool testAlgorithms(int numTests) {
     }
 }
 
+// Prompt user for input file and generate output.txt
+int generateOutput() {
+    try {
+        std::string filePath;
+
+        // Prompt the user
+        std::cout << "Enter input file path: ";
+        std::cin >> filePath;
+
+        std::vector<std::string> output = runAlgorithmOnFile(filePath);
+
+        if (output.empty()) {
+            throw std::runtime_error("No processes loaded from input file");
+            return 1;
+        }
+
+        std::ofstream outFile("output.txt");
+
+        // Write to output.txt
+        for (const std::string& str : output) {
+            outFile << str << std::endl;
+        }
+
+        outFile.close();
+
+        std::cout << "Success! Result written to output.txt" << std::endl;
+        return 0;
+    } catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return 1;
+    }
+}
+
 int main() {
-    return !testAlgorithms(16);
+    // return !testAlgorithms(16);
+    return generateOutput();
 }
