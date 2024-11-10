@@ -128,7 +128,7 @@ void roundRobin(std::priority_queue<std::array<int, 4>, std::vector<std::array<i
     }
 
     double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
+    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
 void shortestJobFirst(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
@@ -175,7 +175,7 @@ void shortestJobFirst(std::priority_queue<std::array<int, 4>, std::vector<std::a
     }
 
     double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
+    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
 void priorityScheduling(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
@@ -222,15 +222,71 @@ void priorityScheduling(std::priority_queue<std::array<int, 4>, std::vector<std:
     }
 
     double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
+    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
-void prioritySchedulingWithPreemption() {
-    // basically the same as priorityScheduling, but if a process with a higher priority arrives, preempt the current process
-    // to preempt, push the current process back into the priority queue and pop the new process
+void prioritySchedulingWithPreemption(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
+    std::cout << "PR_withPREMP" << std::endl;
 
-    // HANDLE TIES
-    // if priority is the same, compare process number (smaller process number first)
+    // Map to keep track of process id and start times
+    // Get the last associated time for each process (its start or end time)
+    std::unordered_map<int, int> processTimes;
+
+    // Use a priority queue to sort by priority
+    std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, ComparePriority> priorityQueue;
+
+    // Load the first process into the queue
+    priorityQueue.push(processes.top());
+    processTimes.insert({processes.top()[0], processes.top()[1]});
+
+    // Initialize curTime to the first process arrival time
+    int curTime = processes.top()[1];
+    double totalWaitTime = 0;
+    processes.pop();
+
+    // Get all the other processes that have arrived
+    while (!processes.empty() && processes.top()[1] <= curTime) {
+        priorityQueue.push(processes.top());
+        processTimes.insert({processes.top()[0], processes.top()[1]});
+        processes.pop();
+    }
+
+    while (!priorityQueue.empty()) {
+
+        // Get the current process and pop it from the queue
+        std::array<int, 4> curProcess = priorityQueue.top();
+        priorityQueue.pop();
+
+        // Get the time spent waiting and add it to the total wait time
+        totalWaitTime += curTime - processTimes[curProcess[0]];
+
+        // Print the current time (process start time) and the process id
+        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+
+        // When time increases, check to see if more processes can be added to the
+        // priority queue and check if the current process can be preempted
+        while (curProcess[2] > 0) {
+            curTime += 1;
+            curProcess[2] -= 1;
+
+            while (!processes.empty() && processes.top()[1] <= curTime) {
+                priorityQueue.push(processes.top());
+                processTimes.insert({processes.top()[0], processes.top()[1]});
+                processes.pop();
+            }
+
+            // Preempt current process if it has not finished execution
+            if (priorityQueue.top()[3] < curProcess[3] && curProcess[2] > 0) {
+                priorityQueue.push(curProcess);
+                break;
+            }
+        }
+
+        processTimes[curProcess[0]] = curTime;
+    }
+
+    double avgWaitTime = totalWaitTime / numProcesses;
+    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
 void runAlgorithmOnFile(std::string filePath) {
@@ -250,9 +306,9 @@ void runAlgorithmOnFile(std::string filePath) {
             timeSlice = stoi(fileLine.substr(3, fileLine.length()));
         } else if (fileLine.substr(0, 3) == "SJF") {
             id = 1;
-        } else if (fileLine.substr(0, 11) == "PR_noPREMP") {
+        } else if (fileLine.substr(0, 10) == "PR_noPREMP") {
             id = 2;
-        } else if (fileLine.substr(0, 13) == "PR_withPREMP") {
+        } else if (fileLine.substr(0, 12) == "PR_withPREMP") {
             id = 3;
         } else {
             throw std::runtime_error("Invalid algorithm type or file not found");
@@ -298,7 +354,7 @@ void runAlgorithmOnFile(std::string filePath) {
                 priorityScheduling(processes, numProcesses);
                 break;
             case 3:
-                prioritySchedulingWithPreemption();
+                prioritySchedulingWithPreemption(processes, numProcesses);
                 break;
             default:
                 break;
@@ -311,7 +367,7 @@ void runAlgorithmOnFile(std::string filePath) {
 }
 
 int main() {
-    std::string filePath = "./test_cases/input14.txt";
+    std::string filePath = "./test_cases/input16.txt";
     runAlgorithmOnFile(filePath);
     return 0;
 }
