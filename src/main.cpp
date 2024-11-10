@@ -303,6 +303,7 @@ std::vector<std::string> runAlgorithmOnFile(std::string filePath) {
             id = 3;
         } else {
             throw std::runtime_error("Invalid algorithm type or file not found");
+            return {};
         }
         
         // Get the number of processes
@@ -367,6 +368,11 @@ bool testAlgorithms(int numTests) {
             std::ifstream inFile("./test_cases/output" + std::to_string(i) + ".txt");
             std::string fileLine;
             std::vector<std::string> output = runAlgorithmOnFile(filePath);
+
+            if (output.empty()) {
+                throw std::runtime_error("No processes loaded from input file");
+                return false;
+            }
 
             std::string testStatus = "PASS";
             bool pass = true;
