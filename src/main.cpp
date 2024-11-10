@@ -59,6 +59,20 @@ struct CompareBurstTime {
     }
 };
 
+
+// Sort by priority - used in priority scheduling
+// If the burst time and arrival time is the same, sort by process ID
+struct ComparePriority {
+    bool operator()(std::array<int, 4> const& p1, std::array<int, 4> const& p2) {
+        if (p1[3] == p2[3]) {
+            return p1[0] > p2[0];
+        } else {
+            return p1[3] > p2[3];
+        }
+    }
+};
+
+
 void roundRobin(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses, int timeSlice) {
     std::cout << "RR " << timeSlice << std::endl;
     std::queue<std::array<int, 4>> fifoQueue;
@@ -164,11 +178,51 @@ void shortestJobFirst(std::priority_queue<std::array<int, 4>, std::vector<std::a
     std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
-void priorityScheduling() {
-    // basically the same as shortestJobFirst, but instead of sorting by burst time, sort by priority
+void priorityScheduling(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
+    std::cout << "PR_noPREMP" << std::endl;
 
-    // HANDLE TIES
-    // if priority is the same, compare process number (smaller process number first)
+    // Use a priority queue to sort by priority
+    std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, ComparePriority> priorityQueue;
+
+    // Load the first process into the queue
+    priorityQueue.push(processes.top());
+
+    // Initialize curTime to the first process arrival time
+    int curTime = processes.top()[1];
+    double totalWaitTime = 0;
+    processes.pop();
+
+    // Get all the other processes that have arrived
+    while (!processes.empty() && processes.top()[1] <= curTime) {
+        priorityQueue.push(processes.top());
+        processes.pop();
+    }
+
+    while (!priorityQueue.empty()) {
+
+        // Get the current process and pop it from the queue
+        std::array<int, 4> curProcess = priorityQueue.top();
+        priorityQueue.pop();
+
+        // Get the time spent waiting and add it to the total wait time
+        totalWaitTime += curTime - curProcess[1];
+
+        // Print the current time (process start time) and the process id
+        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+
+        // In priority scheudling a processes executes until completion, so just add burst time to current time
+        curTime += curProcess[2];
+
+        // If the next process's arrival time is less than or equal to the current time it's ready to
+        // be added to the priority queue
+        while (!processes.empty() && processes.top()[1] <= curTime) {
+            priorityQueue.push(processes.top());
+            processes.pop();
+        }
+    }
+
+    double avgWaitTime = totalWaitTime / numProcesses;
+    std::cout << "Average Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
 }
 
 void prioritySchedulingWithPreemption() {
@@ -241,7 +295,7 @@ void runAlgorithmOnFile(std::string filePath) {
                 shortestJobFirst(processes, numProcesses);
                 break;
             case 2:
-                priorityScheduling();
+                priorityScheduling(processes, numProcesses);
                 break;
             case 3:
                 prioritySchedulingWithPreemption();
@@ -257,7 +311,7 @@ void runAlgorithmOnFile(std::string filePath) {
 }
 
 int main() {
-    std::string filePath = "./test_cases/input13.txt";
+    std::string filePath = "./test_cases/input14.txt";
     runAlgorithmOnFile(filePath);
     return 0;
 }
