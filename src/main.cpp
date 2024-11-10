@@ -7,9 +7,6 @@ Section #5
 OSs Tested on: Linux
 */
 
-// g++ src/main.cpp -o bin/main
-// bin/main
-
 #include <iostream>
 #include <queue>
 #include <fstream>
@@ -19,38 +16,23 @@ OSs Tested on: Linux
 #include <unordered_map>
 #include <iomanip>
 
-/*
- Input file structure
-    RR 4        <- algorithm (time slice of 4)
-    3           <- number of processes
-    1 0 24 1    <- process #, arrival time, burst time, priority
-    2 0 3 1
-    3 0 3 1
-
- Output file structure
-    RR 4        <- algorithm (time slice of 4)
-    0 1         <- time process STARTED executing on CPU, and process #
-    4 2
-    7 3
-    10 1
-    14 1
-    18 1
-    22 1
-    26 1
- */
-
-// Sort by arrival time - used in all algorithms
+// Sort by arrival time - used for processing the input file
 // Use this just in case the input file is not in order
-struct CompareArrivalTime {
-    bool operator()(std::array<int, 4> const& p1, std::array<int, 4> const& p2) {
-        return p1[1] > p2[1];
+// If the arrival time is the same, sort by its original order from input file
+struct compareArrivalTime {
+    bool operator()(std::array<int, 5> const& p1, std::array<int, 5> const& p2) {
+        if (p1[1] == p2[1]) {
+            return p1[4] > p2[4];
+        } else {
+            return p1[1] > p2[1];
+        }
     }
 };
 
 // Sort by burst time - used in SJF
 // If the burst time and arrival time is the same, sort by process ID
-struct CompareBurstTime {
-    bool operator()(std::array<int, 4> const& p1, std::array<int, 4> const& p2) {
+struct compareBurstTime {
+    bool operator()(std::array<int, 5> const& p1, std::array<int, 5> const& p2) {
         if (p1[2] == p2[2] && p1[1] == p2[1]) {
             return p1[0] > p2[0];
         } else {
@@ -59,11 +41,10 @@ struct CompareBurstTime {
     }
 };
 
-
 // Sort by priority - used in priority scheduling
 // If the burst time and arrival time is the same, sort by process ID
-struct ComparePriority {
-    bool operator()(std::array<int, 4> const& p1, std::array<int, 4> const& p2) {
+struct comparePriority {
+    bool operator()(std::array<int, 5> const& p1, std::array<int, 5> const& p2) {
         if (p1[3] == p2[3]) {
             return p1[0] > p2[0];
         } else {
@@ -72,10 +53,20 @@ struct ComparePriority {
     }
 };
 
+// Helper function to add the average wait time to the output
+void outputAvgWaitTime(double avgWaitTime, std::vector<std::string>& output) {
+    std::ostringstream oss;
+    oss << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime;
+    output.push_back(oss.str());
+}
 
-void roundRobin(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses, int timeSlice) {
-    std::cout << "RR " << timeSlice << std::endl;
-    std::queue<std::array<int, 4>> fifoQueue;
+// Used for storing processes from the initial input file
+using process_queue = std::priority_queue<std::array<int, 5>, std::vector<std::array<int, 5>>, compareArrivalTime>;
+
+std::vector<std::string> roundRobin(process_queue processes, int numProcesses, int timeSlice) {
+    std::vector<std::string> output;
+    output.push_back("RR " + std::to_string(timeSlice));
+    std::queue<std::array<int, 5>> fifoQueue;
 
     // Map to keep track of process id and start times
     // Get the last associated time for each process (its start or end time)
@@ -94,14 +85,14 @@ void roundRobin(std::priority_queue<std::array<int, 4>, std::vector<std::array<i
     while (!fifoQueue.empty()) {
 
         // Get the current process and pop it from the queue
-        std::array<int, 4> curProcess = fifoQueue.front();
+        std::array<int, 5> curProcess = fifoQueue.front();
         fifoQueue.pop();
 
         // Get the time spent waiting and add it to the total wait time
         totalWaitTime += curTime - processTimes[curProcess[0]];
 
-        // Print the current time (process start time) and the process id
-        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+        // Output the current time (process start time) and the process id
+        output.push_back(std::to_string(curTime) + "\t" + std::to_string(curProcess[0]));
 
         // Get the minimum, if burst time is less than time slice, it means the process will finish
         // early and we need to add the remaining burst time to the current time. If time slice is
@@ -126,16 +117,16 @@ void roundRobin(std::priority_queue<std::array<int, 4>, std::vector<std::array<i
         // Update the process time in the map to be its end time
         processTimes[curProcess[0]] = curTime;
     }
-
-    double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
+    outputAvgWaitTime((totalWaitTime / numProcesses), output);
+    return output;
 }
 
-void shortestJobFirst(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
-    std::cout << "SJF" << std::endl;
+std::vector<std::string> shortestJobFirst(process_queue processes, int numProcesses) {
+    std::vector<std::string> output;
+    output.push_back("SJF");
 
     // Use a priority queue to sort by burst time
-    std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareBurstTime> priorityQueue;
+    std::priority_queue<std::array<int, 5>, std::vector<std::array<int, 5>>, compareBurstTime> priorityQueue;
 
     // Load the first process into the queue
     priorityQueue.push(processes.top());
@@ -154,14 +145,14 @@ void shortestJobFirst(std::priority_queue<std::array<int, 4>, std::vector<std::a
     while (!priorityQueue.empty()) {
 
         // Get the current process and pop it from the queue
-        std::array<int, 4> curProcess = priorityQueue.top();
+        std::array<int, 5> curProcess = priorityQueue.top();
         priorityQueue.pop();
 
         // Get the time spent waiting and add it to the total wait time
         totalWaitTime += curTime - curProcess[1];
 
-        // Print the current time (process start time) and the process id
-        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+        // Output the current time (process start time) and the process id
+        output.push_back(std::to_string(curTime) + "\t" + std::to_string(curProcess[0]));
 
         // SJF processes execute until completion, so just add burst time to current time
         curTime += curProcess[2];
@@ -173,16 +164,16 @@ void shortestJobFirst(std::priority_queue<std::array<int, 4>, std::vector<std::a
             processes.pop();
         }
     }
-
-    double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
+    outputAvgWaitTime((totalWaitTime / numProcesses), output);
+    return output;
 }
 
-void priorityScheduling(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
-    std::cout << "PR_noPREMP" << std::endl;
+std::vector<std::string> priorityScheduling(process_queue processes, int numProcesses) {
+    std::vector<std::string> output;
+    output.push_back("PR_noPREMP");
 
     // Use a priority queue to sort by priority
-    std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, ComparePriority> priorityQueue;
+    std::priority_queue<std::array<int, 5>, std::vector<std::array<int, 5>>, comparePriority> priorityQueue;
 
     // Load the first process into the queue
     priorityQueue.push(processes.top());
@@ -201,14 +192,14 @@ void priorityScheduling(std::priority_queue<std::array<int, 4>, std::vector<std:
     while (!priorityQueue.empty()) {
 
         // Get the current process and pop it from the queue
-        std::array<int, 4> curProcess = priorityQueue.top();
+        std::array<int, 5> curProcess = priorityQueue.top();
         priorityQueue.pop();
 
         // Get the time spent waiting and add it to the total wait time
         totalWaitTime += curTime - curProcess[1];
 
-        // Print the current time (process start time) and the process id
-        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+        // Output the current time (process start time) and the process id
+        output.push_back(std::to_string(curTime) + "\t" + std::to_string(curProcess[0]));
 
         // In priority scheudling a processes executes until completion, so just add burst time to current time
         curTime += curProcess[2];
@@ -220,20 +211,20 @@ void priorityScheduling(std::priority_queue<std::array<int, 4>, std::vector<std:
             processes.pop();
         }
     }
-
-    double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
+    outputAvgWaitTime((totalWaitTime / numProcesses), output);
+    return output;
 }
 
-void prioritySchedulingWithPreemption(std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes, int numProcesses) {
-    std::cout << "PR_withPREMP" << std::endl;
+std::vector<std::string> prioritySchedulingWithPreemption(process_queue processes, int numProcesses) {
+    std::vector<std::string> output;
+    output.push_back("PR_withPREMP");
 
     // Map to keep track of process id and start times
     // Get the last associated time for each process (its start or end time)
     std::unordered_map<int, int> processTimes;
 
     // Use a priority queue to sort by priority
-    std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, ComparePriority> priorityQueue;
+    std::priority_queue<std::array<int, 5>, std::vector<std::array<int, 5>>, comparePriority> priorityQueue;
 
     // Load the first process into the queue
     priorityQueue.push(processes.top());
@@ -254,14 +245,14 @@ void prioritySchedulingWithPreemption(std::priority_queue<std::array<int, 4>, st
     while (!priorityQueue.empty()) {
 
         // Get the current process and pop it from the queue
-        std::array<int, 4> curProcess = priorityQueue.top();
+        std::array<int, 5> curProcess = priorityQueue.top();
         priorityQueue.pop();
 
         // Get the time spent waiting and add it to the total wait time
         totalWaitTime += curTime - processTimes[curProcess[0]];
 
-        // Print the current time (process start time) and the process id
-        std::cout << curTime << "\t" << curProcess[0] << std::endl;
+        // Output the current time (process start time) and the process id
+        output.push_back(std::to_string(curTime) + "\t" + std::to_string(curProcess[0]));
 
         // When time increases, check to see if more processes can be added to the
         // priority queue and check if the current process can be preempted
@@ -281,17 +272,17 @@ void prioritySchedulingWithPreemption(std::priority_queue<std::array<int, 4>, st
                 break;
             }
         }
-
         processTimes[curProcess[0]] = curTime;
     }
-
-    double avgWaitTime = totalWaitTime / numProcesses;
-    std::cout << "AVG Waiting Time: " << std::fixed << std::setprecision(2) << avgWaitTime << std::endl;
+    outputAvgWaitTime((totalWaitTime / numProcesses), output);
+    return output;
 }
 
-void runAlgorithmOnFile(std::string filePath) {
+std::vector<std::string> runAlgorithmOnFile(std::string filePath) {
+    std::vector<std::string> output;
 
-    // First, read from the file and load the data into a 2D array
+    // First, read from the file and load the data into a priority queue to ensure
+    // that processes are sorted by arrival time in case they are not in order
     try {
         std::ifstream inFile(filePath);
         std::string fileLine;
@@ -320,41 +311,42 @@ void runAlgorithmOnFile(std::string filePath) {
         }
 
         // Load the process info into a queue of processes
-        // Use a priority queue to ENSURE that the processes are sorted by arrival time
-        // in case it's not in order in the input.txt file!
-        std::priority_queue<std::array<int, 4>, std::vector<std::array<int, 4>>, CompareArrivalTime> processes;
-        
+        // Queue with arrays: [processID, arrivalTime, burstTime, priority, originalOrder]
+        process_queue processes;
+        int count = 0; // Track original order from input file
         while (getline(inFile, fileLine)) {
             int start = 0; // Starting point of the number substring
             int index = 0; // Index of the process array 
-            std::array<int, 4> process;
+            std::array<int, 5> process;
             for (int i = 0; i < fileLine.length(); i++) {
                 if (i == fileLine.length()-1) {
                     // i-start gives the length of the number as a string
                     // Use i-start+1 since i is not a space and has the last number
                     process[index] = stoi(fileLine.substr(start, i-start+1));
+                    process[index+1] = count;
                 } else if (fileLine[i] == ' ') {
                     process[index] = stoi(fileLine.substr(start, i-start));
                     start = i+1;
                     index++;
                 }
             }
+            count++;
             processes.push(process);
         }
 
         // Run the algorithm based on the id now that we have the data
         switch (id) {
             case 0:
-                roundRobin(processes, numProcesses, timeSlice);
+                output = roundRobin(processes, numProcesses, timeSlice);
                 break;
             case 1:
-                shortestJobFirst(processes, numProcesses);
+                output = shortestJobFirst(processes, numProcesses);
                 break;
             case 2:
-                priorityScheduling(processes, numProcesses);
+                output = priorityScheduling(processes, numProcesses);
                 break;
             case 3:
-                prioritySchedulingWithPreemption(processes, numProcesses);
+                output = prioritySchedulingWithPreemption(processes, numProcesses);
                 break;
             default:
                 break;
@@ -363,11 +355,40 @@ void runAlgorithmOnFile(std::string filePath) {
     } catch (std::exception& e) {
         std::cerr << e.what() << std::endl;
     }
+    return output;
+}
 
+// Test against all inputs/output files
+bool testAlgorithms(int numTests) {
+    try {
+        bool allTestsPass = true;
+        for (int i = 1; i <= numTests; i++) {
+            std::string filePath = "./test_cases/input" + std::to_string(i) + ".txt";
+            std::ifstream inFile("./test_cases/output" + std::to_string(i) + ".txt");
+            std::string fileLine;
+            std::vector<std::string> output = runAlgorithmOnFile(filePath);
+
+            std::string testStatus = "PASS";
+            bool pass = true;
+            int index = 0;
+
+            while(getline(inFile, fileLine)) {
+                if (output[index] != fileLine) {
+                    testStatus = "FAIL";
+                    allTestsPass = false;
+                    break;
+                }
+                index++;
+            }
+            std::cout << "TEST " << std::to_string(i) << "\t\t" << testStatus << std::endl;
+        }
+        return allTestsPass;
+    } catch (std::exception& e) {
+        std::cerr << e.what() << std::endl;
+        return false;
+    }
 }
 
 int main() {
-    std::string filePath = "./test_cases/input16.txt";
-    runAlgorithmOnFile(filePath);
-    return 0;
+    return !testAlgorithms(16);
 }
